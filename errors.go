@@ -51,7 +51,10 @@ func Wrap(err error, message string) error {
 
 func wrapf(err error, format string, skip int, args ...interface{}) error {
 	if err == nil {
-		return nil
+		return &stackItem{
+			msg:    fmt.Sprintf(format, args...),
+			caller: getCaller(skip),
+		}
 	}
 	pos := 0
 	if si, ok := err.(*stackItem); ok {
