@@ -3,187 +3,176 @@ package errors
 import (
 	"fmt"
 	"io"
-	"path"
-	"runtime"
-	"strconv"
-	"strings"
+
+	"github.com/go-msvc/logger"
 )
 
-// The point at which an error was added to the error stack
-type caller struct {
-	pc       uintptr
-	function string
-	file     string
-	line     int
-} // caller
-
-// Item on the error stack
-type stackItem struct {
+type IError interface {
 	error
-	pos    int
-	notTop bool
+	Parent() error
+	Caller() logger.Caller
+	Message() string
+}
+
+//msError implements IError
+type msError struct {
+	parent error
+	caller logger.Caller
 	msg    string
-	caller *caller
-} // stackItem
-
-//New is the same as Errorf
-func New(message string) error {
-	return Errorf(message)
 }
 
-// Errorf creates a new error using printf formatting and captures the caller details
-func Errorf(format string, args ...interface{}) error {
-	return &stackItem{
-		msg:    fmt.Sprintf(format, args...),
-		caller: getCaller(2),
-	}
+func (e msError) Parent() error {
+	return e.parent
 }
 
-//Wrapf is same as Errorf(), but wraps around an existing error
-func Wrapf(err error, format string, args ...interface{}) error {
-	return wrapf(err, format, 3, args...)
+func (e msError) Caller() logger.Caller {
+	return e.caller
 }
 
-//Wrap is like Wrapf() but without formatting
-func Wrap(err error, message string) error {
-	return wrapf(err, message, 3)
+func (e msError) Message() string {
+	return e.msg
 }
 
-func wrapf(err error, format string, skip int, args ...interface{}) error {
-	if err == nil {
-		return &stackItem{
-			msg:    fmt.Sprintf(format, args...),
-			caller: getCaller(skip),
-		}
-	}
-	pos := 0
-	if si, ok := err.(*stackItem); ok {
-		pos = si.pos + 1
-	}
-	return &stackItem{
-		pos:    pos,
-		error:  err,
-		msg:    fmt.Sprintf(format, args...),
-		caller: getCaller(skip),
-	}
-}
-
-//Cause ...
-func Cause(err error) error {
-	if err == nil {
-		return err
-	}
-
-	si, ok := err.(*stackItem)
-	if !ok {
-		return err
-	}
-	if si.error == nil {
-		return si
-	}
-	return Cause(si.error)
-}
-
-func (w *stackItem) Format(s fmt.State, verb rune) {
-	switch verb {
-	case 'v':
-		if s.Flag('+') {
-			if !w.notTop {
-				fmt.Fprintf(s, "%s\n", w.msg)
-			}
-
-			io.WriteString(s, " ")
-			w.caller.Format(s, verb)
-			fmt.Fprintf(s, " [%d] %s\n", w.pos, w.msg)
-
-			if w.error != nil {
-				if si, ok := w.error.(*stackItem); ok {
-					si.notTop = true
-				}
-				fmt.Fprintf(s, "%+v", w.error)
-			}
-			return
-		}
-
-		fallthrough
-	case 's':
-		io.WriteString(s, w.msg)
-		if w.error != nil {
-			fmt.Fprintf(s, ": %s", w.error)
-		}
-	case 'q':
-		fmt.Fprintf(s, "%q", w.msg)
-	}
-}
-
-func (w *stackItem) Error() string {
-	if w != nil {
-		return fmt.Sprintf("%s", w)
-	}
-	return ""
-}
-
-//Format formats the caller according to the fmt.Formatter interface.
-func (caller caller) Format(s fmt.State, verb rune) {
-	switch verb {
-	case 's':
-		switch {
-		case s.Flag('+'):
-			fn := caller.function
-			const fnw = 16
-			const fw = 22
-			if len(fn) > fnw {
-				fn = fn[len(fn)-fnw:]
-			}
-			fileName := func() string {
-				idx := strings.LastIndexByte(caller.file, '/')
-				if idx == -1 {
-					return caller.file
-				}
-				idx = strings.LastIndexByte(caller.file[:idx], '/')
-				if idx == -1 {
-					return caller.file
-				}
-				return caller.file[idx+1:]
-			}() + ":" + strconv.Itoa(caller.line)
-			if len(fileName) > fw {
-				fileName = fileName[len(fileName)-fw:]
-			}
-			fmt.Fprintf(s, "%*s %*s", fw, fileName, fnw, fn)
-		default:
-			io.WriteString(s, path.Base(caller.file))
-		}
-	case 'd':
-		fmt.Fprintf(s, "%d", caller.line)
-	case 'n':
-		io.WriteString(s, funcname(caller.function))
-	case 'v':
-		caller.Format(s, 's')
-	}
-}
-
-func getCaller(skip int) *caller {
-	if pc, file, line, ok := runtime.Caller(skip); ok {
-		fnName := ""
-		if fn := runtime.FuncForPC(pc); fn != nil {
-			fnName = fn.Name()
+//implement error
+func (e msError) Error() string {
+	s := e.msg
+	err := e.parent
+	for err != nil {
+		if e, ok := err.(IError); ok {
+			s += " because " + e.Error()
+			err = e.Parent()
 		} else {
-			fnName = "unknown"
-		}
-		return &caller{
-			pc:       pc,
-			function: fnName,
-			file:     file,
-			line:     line,
+			s += " because " + err.Error()
+			break
 		}
 	}
-	return &caller{}
+	return s
 }
 
-//funcname removes the path prefix component of a function's name reported by func.Name().
-func funcname(name string) string {
-	i := strings.LastIndex(name, "/")
-	name = name[i+1:]
-	i = strings.Index(name, ".")
-	return name[i+1:]
+func (e msError) CallerError() string {
+	s := fmt.Sprintf("%s", e.msg)
+	err := e.parent
+	for err != nil {
+		if e, ok := err.(IError); ok {
+			s += " because " + e.Error()
+			err = e.Parent()
+		} else {
+			s += " because " + err.Error()
+			break
+		}
+	}
+	return s
 }
+
+//implement fmt.Formatter
+func (e msError) Format(f fmt.State, c rune) {
+	var s string
+	switch c {
+	case 's':
+		s = e.msg
+
+	case 'v':
+		s = fmt.Sprintf("%v:%s", e.caller, e.msg)
+	case 'V':
+		s = fmt.Sprintf("%+V:%s", e.caller, e.msg)
+
+	case 'f':
+		s = fmt.Sprintf("%f:%s", e.caller, e.msg)
+	case 'F':
+		s = fmt.Sprintf("%+F:%s", e.caller, e.msg)
+
+	default:
+		s = e.Error()
+	}
+	io.WriteString(f, s)
+
+	if e.parent != nil {
+		stack := false
+		if f.Flag('+') {
+			stack = true
+			io.WriteString(f, " because ")
+		}
+		if f.Flag('-') {
+			stack = true
+			io.WriteString(f, "\n")
+		}
+		if stack {
+			if formatter, ok := e.parent.(fmt.Formatter); ok {
+				formatter.Format(f, c)
+			} else {
+				io.WriteString(f, e.parent.Error())
+			}
+		}
+	}
+}
+
+// func (w *stackItem) Error() string {
+
+// 	if w != nil /*&& w.error != nil*/ {
+// 		//return w.error.Error()
+// 		return fmt.Sprintf("%s", w) // w.msg
+// 	}
+
+// 	return ""
+
+// } // stackItem.Error()
+
+func Error(msg string) error {
+	return msError{
+		parent: nil,
+		caller: logger.GetCaller(2),
+		msg:    msg,
+	}
+}
+
+func Errorf(format string, args ...interface{}) error {
+	return msError{
+		parent: nil,
+		caller: logger.GetCaller(2),
+		msg:    fmt.Sprintf(format, args...),
+	}
+}
+
+func Wrap(err error, msg string) error {
+	return wrap(err, 3, msg)
+}
+
+func Wrapf(err error, format string, args ...interface{}) error {
+	return wrap(err, 3, fmt.Sprintf(format, args...))
+}
+
+func wrap(err error, skip int, msg string) msError {
+	if err == nil {
+		Error(msg)
+	}
+
+	return msError{
+		parent: err,
+		msg:    msg,
+		caller: logger.GetCaller(skip),
+	}
+}
+
+// func Cause(err error) error {
+// 	if err == nil {
+// 		return err
+// 	}
+
+// 	if si, ok := err.(*stackItem); !ok {
+// 		return err
+// 	} else {
+// 		if si.error == nil {
+// 			return si
+// 		} else {
+// 			return Cause(si.error)
+// 		}
+// 	}
+
+// } // Cause()
+
+// func (w *stackItem) Unwrap() error {
+// 	if w == nil {
+// 		return nil
+// 	}
+// 	return w.error
+// } // stackItem.Unwrap()
