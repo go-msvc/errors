@@ -12,6 +12,7 @@ type IError interface {
 	Parent() error
 	Caller() logger.Caller
 	Message() string
+	Code() int
 }
 
 //msError implements IError
@@ -19,6 +20,7 @@ type msError struct {
 	parent error
 	caller logger.Caller
 	msg    string
+	code   int
 }
 
 func (e msError) Parent() error {
@@ -33,9 +35,16 @@ func (e msError) Message() string {
 	return e.msg
 }
 
+func (e msError) Code() int {
+	return e.code
+}
+
 func Is(err error, check error) bool {
 	if err == check {
 		return true
+	}
+	if err == nil {
+		return false //nil and not same as check!=nil
 	}
 	p := err
 	for i := 0; i < 10; i++ {
@@ -50,6 +59,16 @@ func Is(err error, check error) bool {
 		}
 	}
 	return false
+}
+
+func Code(err error) int {
+	if err == nil {
+		return 0
+	}
+	if e, ok := err.(IError); ok {
+		return e.Code()
+	}
+	return -1
 }
 
 //implement error
@@ -129,7 +148,17 @@ func Error(msg string) error {
 	return msError{
 		parent: nil,
 		caller: logger.GetCaller(2),
+		code:   -1,
 		msg:    msg,
+	}
+}
+
+func Errorc(code int, name string) error {
+	return msError{
+		parent: nil,
+		caller: logger.GetCaller(2),
+		code:   code,
+		msg:    name,
 	}
 }
 
@@ -137,6 +166,7 @@ func Errorf(format string, args ...interface{}) error {
 	return msError{
 		parent: nil,
 		caller: logger.GetCaller(2),
+		code:   -1,
 		msg:    fmt.Sprintf(format, args...),
 	}
 }
@@ -154,8 +184,14 @@ func wrap(err error, skip int, msg string) msError {
 		Error(msg)
 	}
 
+	code := -1
+	if p, ok := err.(IError); ok {
+		code = p.Code()
+	}
+
 	return msError{
 		parent: err,
+		code:   code,
 		msg:    msg,
 		caller: logger.GetCaller(skip),
 	}

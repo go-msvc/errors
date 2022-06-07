@@ -2,6 +2,7 @@ package errors_test
 
 import (
 	"fmt"
+	"net/http"
 	"testing"
 
 	"github.com/go-msvc/errors"
@@ -104,5 +105,41 @@ func TestErrorIs(t *testing.T) {
 		t.Logf("Is not e2, good")
 	} else {
 		t.Fatalf("Is e1, bad")
+	}
+}
+
+func TestErrorCode(t *testing.T) {
+	//define errors with codes
+	errNotFound := errors.Errorc(http.StatusNotFound, http.StatusText(http.StatusNotFound))
+	errInternalServerError := errors.Errorc(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
+	errUnauthorized := errors.Errorc(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
+
+	//something fail using a type of error, and then get passed up to wrap again
+	err := errors.Wrapf(errUnauthorized, "invalid password")
+	err = errors.Wrapf(err, "failed more")
+
+	//testing
+	t.Logf("err: %+v", err)
+	t.Logf("err.Code: %+v", errors.Code(err))
+
+	for _, e := range []error{
+		errUnauthorized,
+	} {
+		if errors.Is(err, e) {
+			t.Logf("Is %s, good", e)
+		} else {
+			t.Logf("Is not %s, bad", e)
+		}
+	}
+
+	for _, e := range []error{
+		errNotFound,
+		errInternalServerError,
+	} {
+		if !errors.Is(err, e) {
+			t.Logf("Is not %s, good", e)
+		} else {
+			t.Logf("Is %s, bad", e)
+		}
 	}
 }
