@@ -83,3 +83,26 @@ func TestStack(t *testing.T) {
 		}
 	}
 }
+
+func TestErrorIs(t *testing.T) {
+	//define two type of errors
+	e1 := errors.Error("error1")
+	e2 := errors.Error("error2")
+
+	//something fail using a type of error, and then get passed up to wrap again
+	err := errors.Wrapf(e1, "failed some")
+	err = errors.Wrapf(err, "failed more")
+
+	//confirm it is e1 and not e2
+	if errors.Is(err, e1) {
+		t.Logf("Is e1, good")
+	} else {
+		t.Fatalf("Is not e1, bad")
+	}
+
+	if !errors.Is(err, e2) {
+		t.Logf("Is not e2, good")
+	} else {
+		t.Fatalf("Is e1, bad")
+	}
+}

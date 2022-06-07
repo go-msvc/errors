@@ -33,6 +33,25 @@ func (e msError) Message() string {
 	return e.msg
 }
 
+func Is(err error, check error) bool {
+	if err == check {
+		return true
+	}
+	p := err
+	for i := 0; i < 10; i++ {
+		if stack, ok := p.(IError); ok {
+			p = stack.Parent()
+			if p == nil {
+				break
+			}
+			if p == check {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 //implement error
 func (e msError) Error() string {
 	s := e.msg
@@ -105,17 +124,6 @@ func (e msError) Format(f fmt.State, c rune) {
 		}
 	}
 }
-
-// func (w *stackItem) Error() string {
-
-// 	if w != nil /*&& w.error != nil*/ {
-// 		//return w.error.Error()
-// 		return fmt.Sprintf("%s", w) // w.msg
-// 	}
-
-// 	return ""
-
-// } // stackItem.Error()
 
 func Error(msg string) error {
 	return msError{
