@@ -3,21 +3,19 @@ package errors
 import (
 	"fmt"
 	"io"
-
-	"github.com/go-msvc/logger"
 )
 
 type IError interface {
 	error
 	Parent() error
-	Caller() logger.Caller
+	Caller() Caller
 	Message() string
 }
 
-//msError implements IError
+// msError implements IError
 type msError struct {
 	parent error
-	caller logger.Caller
+	caller Caller
 	msg    string
 }
 
@@ -25,7 +23,7 @@ func (e msError) Parent() error {
 	return e.parent
 }
 
-func (e msError) Caller() logger.Caller {
+func (e msError) Caller() Caller {
 	return e.caller
 }
 
@@ -33,7 +31,7 @@ func (e msError) Message() string {
 	return e.msg
 }
 
-//implement error
+// implement error
 func (e msError) Error() string {
 	s := e.msg
 	err := e.parent
@@ -64,7 +62,7 @@ func (e msError) CallerError() string {
 	return s
 }
 
-//implement fmt.Formatter
+// implement fmt.Formatter
 func (e msError) Format(f fmt.State, c rune) {
 	var s string
 	switch c {
@@ -120,7 +118,7 @@ func (e msError) Format(f fmt.State, c rune) {
 func Error(msg string) error {
 	return msError{
 		parent: nil,
-		caller: logger.GetCaller(2),
+		caller: GetCaller(2),
 		msg:    msg,
 	}
 }
@@ -128,7 +126,7 @@ func Error(msg string) error {
 func Errorf(format string, args ...interface{}) error {
 	return msError{
 		parent: nil,
-		caller: logger.GetCaller(2),
+		caller: GetCaller(2),
 		msg:    fmt.Sprintf(format, args...),
 	}
 }
@@ -149,7 +147,7 @@ func wrap(err error, skip int, msg string) msError {
 	return msError{
 		parent: err,
 		msg:    msg,
-		caller: logger.GetCaller(skip),
+		caller: GetCaller(skip),
 	}
 }
 
