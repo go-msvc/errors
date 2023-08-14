@@ -10,6 +10,8 @@ type IError interface {
 	Parent() error
 	Caller() Caller
 	Message() string
+	ErrorWithCode
+	CodeOrDefault(defaultCode int) int
 }
 
 // msError implements IError
@@ -17,6 +19,7 @@ type msError struct {
 	parent error
 	caller Caller
 	msg    string
+	code   *int
 }
 
 func (e msError) Parent() error {
@@ -29,6 +32,17 @@ func (e msError) Caller() Caller {
 
 func (e msError) Message() string {
 	return e.msg
+}
+
+func (e msError) Code() *int {
+	return e.code
+}
+
+func (e msError) CodeOrDefault(defaultCode int) int {
+	if e.code == nil {
+		return defaultCode
+	}
+	return *e.code
 }
 
 // implement error
@@ -123,6 +137,15 @@ func Error(msg string) error {
 	}
 }
 
+func Errorc(code int, msg string) error {
+	return msError{
+		parent: nil,
+		caller: GetCaller(2),
+		msg:    msg,
+		code:   &code,
+	}
+}
+
 func Errorf(format string, args ...interface{}) error {
 	return msError{
 		parent: nil,
@@ -131,24 +154,55 @@ func Errorf(format string, args ...interface{}) error {
 	}
 }
 
+func Errorcf(code int, format string, args ...interface{}) error {
+	return msError{
+		parent: nil,
+		caller: GetCaller(2),
+		msg:    fmt.Sprintf(format, args...),
+		code:   &code,
+	}
+}
+
 func Wrap(err error, msg string) error {
-	return wrap(err, 3, msg)
+	return wrap(err, 3, nil, msg)
+}
+
+func Wrapc(err error, code int, msg string) error {
+	return wrap(err, 3, &code, msg)
 }
 
 func Wrapf(err error, format string, args ...interface{}) error {
-	return wrap(err, 3, fmt.Sprintf(format, args...))
+	return wrap(err, 3, nil, fmt.Sprintf(format, args...))
 }
 
-func wrap(err error, skip int, msg string) msError {
+func Wrapcf(err error, code int, format string, args ...interface{}) error {
+	return wrap(err, 3, &code, fmt.Sprintf(format, args...))
+}
+
+func wrap(err error, skip int, code *int, msg string) msError {
 	if err == nil {
 		Error(msg)
 	}
 
-	return msError{
+	e := msError{
 		parent: err,
 		msg:    msg,
 		caller: GetCaller(skip),
+		code:   code,
 	}
+
+	//inherit code from parent if not specified
+	if code == nil && e.parent != nil {
+		if ewc, ok := e.parent.(ErrorWithCode); ok {
+			e.code = ewc.Code()
+		}
+	}
+	return e
+}
+
+type ErrorWithCode interface {
+	error
+	Code() *int
 }
 
 // func Cause(err error) error {
