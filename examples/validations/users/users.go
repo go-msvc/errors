@@ -3,7 +3,7 @@ package users
 import (
 	"time"
 
-	"github.com/go-msvc/errors"
+	"github.com/go-msvc/errors/v2"
 )
 
 type AddUserRequest struct {

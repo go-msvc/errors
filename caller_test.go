@@ -5,7 +5,7 @@ import (
 	"path"
 	"testing"
 
-	"github.com/go-msvc/errors"
+	"github.com/go-msvc/errors/v2"
 	"github.com/stretchr/testify/assert"
 )
 

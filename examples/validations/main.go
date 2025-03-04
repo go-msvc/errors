@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/go-msvc/errors"
-	"github.com/go-msvc/errors/examples/validations/users"
+	"github.com/go-msvc/errors/v2"
+	"github.com/go-msvc/errors/v2/examples/validations/users"
 )
 
 func main() {

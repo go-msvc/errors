@@ -10,7 +10,7 @@ Offers:
 
 Respond with an error message using Error() or Errorf():
 ```
-import "github.com/go-msvc/errors"
+import "github.com/go-msvc/errors/v2"
 ...
 return errors.Error("failed to do something")
 return errors.Errorf("failed to connect to %s", addr)
