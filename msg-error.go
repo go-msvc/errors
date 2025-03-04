@@ -80,6 +80,10 @@ func Is(err, target error) bool {
 	return errors.Is(err, target)
 }
 
+func Join(errs ...error) error {
+	return errors.Join(errs...)
+}
+
 type msgError struct {
 	baseError
 	msg string
