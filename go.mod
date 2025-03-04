@@ -1,4 +1,4 @@
-module github.com/go-msvc/errors
+module github.com/go-msvc/errors/v2
 
 go 1.24
 
