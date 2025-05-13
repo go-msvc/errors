@@ -34,9 +34,9 @@ func TestNew(t *testing.T) {
 			assert.Equal(t, fmt.Sprintf("errors_test.go(%d):%s", expErrLine, err.String()), fmt.Sprintf("%-v", err))
 
 			//error with source as fullpath
-			assert.Equal(t, fmt.Sprintf("github.com/go-msvc/errors/errors_test.go(%d):%s", expErrLine, err.String()), fmt.Sprintf("%V", err))
-			assert.Equal(t, fmt.Sprintf("github.com/go-msvc/errors/errors_test.go(%d):%s", expErrLine, err.String()), fmt.Sprintf("%+V", err))
-			assert.Equal(t, fmt.Sprintf("github.com/go-msvc/errors/errors_test.go(%d):%s", expErrLine, err.String()), fmt.Sprintf("%-V", err))
+			assert.Equal(t, fmt.Sprintf("github.com/go-msvc/errors/v2/errors_test.go(%d):%s", expErrLine, err.String()), fmt.Sprintf("%V", err))
+			assert.Equal(t, fmt.Sprintf("github.com/go-msvc/errors/v2/errors_test.go(%d):%s", expErrLine, err.String()), fmt.Sprintf("%+V", err))
+			assert.Equal(t, fmt.Sprintf("github.com/go-msvc/errors/v2/errors_test.go(%d):%s", expErrLine, err.String()), fmt.Sprintf("%-V", err))
 		})
 	}
 }
@@ -66,7 +66,7 @@ func TestWrapExternalError(t *testing.T) {
 	assert.Equal(t, errWithSource+linkNl+origErr.Error(), fmt.Sprintf("%-v", err)) //+ recurse on wrapped errors with newline
 
 	//'V' -> error with source as fullpath
-	errWithSource = fmt.Sprintf("github.com/go-msvc/errors/errors_test.go(%d):%s", expErrLine, err.String())
+	errWithSource = fmt.Sprintf("github.com/go-msvc/errors/v2/errors_test.go(%d):%s", expErrLine, err.String())
 	assert.Equal(t, errWithSource, fmt.Sprintf("%V", err))                         //no recursion
 	assert.Equal(t, errWithSource+linkBc+origErr.Error(), fmt.Sprintf("%+V", err)) //+ recurse on wrapped errors with because
 	assert.Equal(t, errWithSource+linkNl+origErr.Error(), fmt.Sprintf("%-V", err)) //+ recurse on wrapped errors with newline
@@ -104,8 +104,8 @@ func TestWrappedAndFormatted(t *testing.T) {
 	assert.Equal(t, errWithSource+linkNl+errOrgWithSource, fmt.Sprintf("%-v", err)) //+ recurse on wrapped errors with newline
 
 	//'V' -> error with source as fullpath
-	errOrgWithSource = fmt.Sprintf("github.com/go-msvc/errors/errors_test.go(%d):%s", expErrLine1, origErr.String())
-	errWithSource = fmt.Sprintf("github.com/go-msvc/errors/errors_test.go(%d):%s", expErrLine2, err.String())
+	errOrgWithSource = fmt.Sprintf("github.com/go-msvc/errors/v2/errors_test.go(%d):%s", expErrLine1, origErr.String())
+	errWithSource = fmt.Sprintf("github.com/go-msvc/errors/v2/errors_test.go(%d):%s", expErrLine2, err.String())
 	assert.Equal(t, errWithSource, fmt.Sprintf("%V", err))                          //no recursion
 	assert.Equal(t, errWithSource+linkBc+errOrgWithSource, fmt.Sprintf("%+V", err)) //+ recurse on wrapped errors with because
 	assert.Equal(t, errWithSource+linkNl+errOrgWithSource, fmt.Sprintf("%-V", err)) //+ recurse on wrapped errors with newline
